@@ -1,106 +1,83 @@
-const fsPromise = require("fs/promises");
 const fs = require("fs");
+const util = require("util");
 
-let filesSubsciption = {}
+// Convert fs methods to return promises
+const fsOpen = util.promisify(fs.open);
+const fsRead = util.promisify(fs.read);
+const fsClose = util.promisify(fs.close);
+const fsStat = util.promisify(fs.stat);
 
 const readFile = (path, start, onRead) => {
-	const readStream = fs.createReadStream(path, { start: start });
+    const readStream = fs.createReadStream(path, {start: start});
 
-	readStream.on("data", (chunk) => {
-		onRead(chunk.toString().split("\n").filter(s => s), start + chunk.byteLength);
-	});
+    readStream.on("data", (chunk) => {
+        onRead(chunk.toString(), start + chunk.byteLength);
+    });
 
-	readStream.on("error", (err) => {
-		console.error("An error occurred:", err);
-	});
+    readStream.on("error", (err) => {
+        console.error("An error occurred:", err);
+    });
 };
 
-const readFromEnd = async (path, lines) => {
-	try {
-		const stats = await fsPromise.stat(path);
-		let position = stats.size;
-		const bufferSize = 100
-		const buffer = Buffer.alloc(bufferSize);
-		let lineCount = 0;
-		let content = []
-		let fileDescriptor = await fsPromise.open(path, "r");
+const readFromEnd = async (path, onRead, lines) => {
+    try {
+        const stats = await fsStat(path);
+        let position = stats.size;
+        const buffer = Buffer.alloc(1);
+        let lineCount = 0;
+        let content = "";
+        let fileDescriptor = await fsOpen(path, "r");
 
-		while (position > 0 && lineCount <= lines) {
-			const bytesToRead = position > bufferSize ? bufferSize : position
-			position -= bytesToRead
-			const { bytesRead } = await fileDescriptor.read(
-				buffer,
-				0,
-				bytesToRead,
-				position,
-			);
-			if (bytesRead > 0) {
-				const data = buffer.toString("utf8", 0, bytesRead);
-				content.push(...data.split("\n").slice(-10))
-				if (content.length >= lines) {
-					break
-				}
-			}
-		}
+        while (position > 0 && lineCount <= lines) {
+            position -= 1;
+            const {bytesRead} = await fsRead(
+                fileDescriptor,
+                buffer,
+                0,
+                1,
+                position,
+            );
+            if (bytesRead > 0) {
+                const data = buffer.toString("utf8", 0, bytesRead);
+                if (data === "\n") {
+                    lineCount++;
+                }
+                if (lineCount <= lines) {
+                    content = data + content; // Prepend to keep the order correct
+                }
+            }
+        }
 
-		fileDescriptor.close();
-		return [content, stats.size];
-	} catch (err) {
-		console.error("An error occurred:", err);
-	}
+        await fsClose(fileDescriptor);
+        onRead(content, stats.size);
+    } catch (err) {
+        console.error("An error occurred:", err);
+    }
 };
 
-const listenFileChange = async (path, sendUpdates) => {
-	// Watch for changes in the file
-	fs.watch(path, (eventType) => {
-		if (eventType === "change") {
-			readFile(path, filesSubsciption[path].lastReadPostion, (content, end) => {
-				filesSubsciption[path].lastReadPostion = end;
-				filesSubsciption[path].content = filesSubsciption[path].content.slice(content.length)
-				filesSubsciption[path].content.push(...content)
-				sendUpdates(content)
-			});
-		}
-	});
+const listenRead = (path, onRead) => {
+    let start = 0;
+    // Read last 10 lines
+    readFromEnd(
+        path,
+        (content, end) => {
+            // console.log("Sending first lines...")
+            start = end;
+            onRead(content);
+        },
+        10,
+    );
+
+    // Watch for changes in the file
+    fs.watch(path, (eventType) => {
+        if (eventType === "change") {
+            readFile(path, start, (content, end) => {
+                // console.log("Sending updates...")
+                start = end;
+                onRead(content);
+            });
+        }
+    });
 };
 
-const onDisconnect = async (path, clientId) => {
-	filesSubsciption[path].clients = filesSubsciption[path].clients.filter(r => r.clientId !== clientId)
-	// delete file buffer if no clients connected for this file
-	if (filesSubsciption[path].clients.length === 0 ) {
-		delete filesSubsciption[path]
-	}
-}
-
-const initFileBuffer = async (path) => {
-	const isFirstLoad = !filesSubsciption.hasOwnProperty(path)
-	// Initialize the reader
-	if (isFirstLoad) {
-		const [content, position] = await readFromEnd(path, 10)
-		filesSubsciption[path] = {
-			lastReadPostion: position,
-			content: content,
-			clients: []
-		}
-		listenFileChange(path, content => {
-			filesSubsciption[path].clients.forEach(client => {
-				client.callBack(content)
-			})
-		})
-	}
-}
-
-const subscribeFile = async (path, clientId, onRead) => {
-	filesSubsciption[path].clients.push({
-		clientId: clientId,
-		callBack: onRead
-	})
-	// Sending the first message of the subscription from the buffer i.e that last 10 lines of file
-	onRead(filesSubsciption[path].content)
-}
-
-module.exports = {
-	onDisconnect,
-	initFileBuffer,
-	subscribeFile
-};
+module.exports = listenRead;
