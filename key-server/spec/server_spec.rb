@@ -103,7 +103,7 @@ describe "GET /keep_alive/:key" do
   end
 
   context "when keep-alive is called" do
-    it "retuns 404" do
+    it "retuns 200" do
       get "/keep_alive/#{@key}"
       expect(last_response.status).to eq(200)
       get '/get_key'
