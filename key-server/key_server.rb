@@ -5,6 +5,7 @@ require 'time'
 set :port, 4567 # or any preferred port
 
 # Structure to hold keys: {key => {blocked: boolean, last_seen: Time}}
+# Lock this
 KEYS = {}
 
 # Endpoint to generate keys
