@@ -1,0 +1,8 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "sinatra"
+gem 'thin', '~> 1.7' # A simple server for Sinatra
+gem 'rspec'
+gem 'rack-test'
