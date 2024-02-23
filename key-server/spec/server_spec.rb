@@ -96,6 +96,7 @@ describe "GET /keep_alive/:key" do
 
   context "when keep-alive is not called" do
     it "retuns 404" do
+	  # change system clock
       sleep(301)
       get '/get_key'
       expect(last_response.status).to eq(404)
