@@ -1,7 +1,7 @@
 const fsPromise = require("fs/promises");
 const fs = require("fs");
 
-let files = {}
+let filesSubsciption = {}
 
 const readFile = (path, start, onRead) => {
 	const readStream = fs.createReadStream(path, { start: start });
@@ -50,14 +50,14 @@ const readFromEnd = async (path, lines) => {
 	}
 };
 
-const listenRead = async (path, sendUpdates) => {
+const listenFileChange = async (path, sendUpdates) => {
 	// Watch for changes in the file
 	fs.watch(path, (eventType) => {
 		if (eventType === "change") {
-			readFile(path, files[path].lastReadPostion, (content, end) => {
-				files[path].lastReadPostion = end;
-				files[path].content = files[path].content.slice(content.length)
-				files[path].content.push(...content)
+			readFile(path, filesSubsciption[path].lastReadPostion, (content, end) => {
+				filesSubsciption[path].lastReadPostion = end;
+				filesSubsciption[path].content = filesSubsciption[path].content.slice(content.length)
+				filesSubsciption[path].content.push(...content)
 				sendUpdates(content)
 			});
 		}
@@ -65,25 +65,25 @@ const listenRead = async (path, sendUpdates) => {
 };
 
 const onDisconnect = async (path, clientId) => {
-	files[path].clients = files[path].clients.filter(r => r.clientId !== clientId)
+	filesSubsciption[path].clients = filesSubsciption[path].clients.filter(r => r.clientId !== clientId)
 	// delete file buffer if no clients connected for this file
-	if (files[path].clients.length === 0 ) {
-		delete files[path]
+	if (filesSubsciption[path].clients.length === 0 ) {
+		delete filesSubsciption[path]
 	}
 }
 
 const initFileBuffer = async (path) => {
-	const isFirstLoad = !files.hasOwnProperty(path)
+	const isFirstLoad = !filesSubsciption.hasOwnProperty(path)
 	// Initialize the reader
 	if (isFirstLoad) {
 		const [content, position] = await readFromEnd(path, 10)
-		files[path] = {
+		filesSubsciption[path] = {
 			lastReadPostion: position,
 			content: content,
 			clients: []
 		}
-		listenRead(path, content => {
-			files[path].clients.forEach(client => {
+		listenFileChange(path, content => {
+			filesSubsciption[path].clients.forEach(client => {
 				client.callBack(content)
 			})
 		})
@@ -91,12 +91,12 @@ const initFileBuffer = async (path) => {
 }
 
 const subscribeFile = async (path, clientId, onRead) => {
-	files[path].clients.push({
+	filesSubsciption[path].clients.push({
 		clientId: clientId,
 		callBack: onRead
 	})
 	// Sending the first message of the subscription from the buffer i.e that last 10 lines of file
-	onRead(files[path].content)
+	onRead(filesSubsciption[path].content)
 }
 
 module.exports = {
