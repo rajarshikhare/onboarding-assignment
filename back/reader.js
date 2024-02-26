@@ -95,7 +95,7 @@ const subscribeFile = async (path, clientId, onRead) => {
 		clientId: clientId,
 		callBack: onRead
 	})
-	// Sending the first message of the subscription i.e last 10 lines from the buffer
+	// Sending the first message of the subscription from the buffer i.e that last 10 lines of file
 	onRead(files[path].content)
 }
 
