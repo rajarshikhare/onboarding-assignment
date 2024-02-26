@@ -15,7 +15,7 @@ const readFile = (path, start, onRead) => {
 	});
 };
 
-const readFromEnd = async (path, onRead, lines) => {
+const readFromEnd = async (path, lines) => {
 	try {
 		const stats = await fsPromise.stat(path);
 		let position = stats.size;
@@ -44,37 +44,19 @@ const readFromEnd = async (path, onRead, lines) => {
 		}
 
 		fileDescriptor.close();
-		onRead(content, stats.size);
+		return [content, stats.size];
 	} catch (err) {
 		console.error("An error occurred:", err);
 	}
 };
 
-const listenRead = async (path) => {
-	const sendContent = (content) => {
-		files[path].content = files[path].content.slice(content.length).concat(content)
-		files[path].clients.forEach(client => {
-			client.callBack(content)
-		})
-	}
-
-	let start = 0;
-	// Read last 10 lines
-	await readFromEnd(
-		path,
-		(content, end) => {
-			start = end;
-			sendContent(content);
-		},
-		10,
-	);
-
+const listenRead = async (path, sendUpdates) => {
 	// Watch for changes in the file
 	fs.watch(path, (eventType) => {
 		if (eventType === "change") {
-			readFile(path, start, (content, end) => {
-				start = end;
-				sendContent(content);
+			readFile(path, files[path].lastReadPostion, (content, end) => {
+				files[path].lastReadPostion = end;
+				sendUpdates(content)
 			});
 		}
 	});
@@ -88,25 +70,35 @@ const onDisconnect = async (path, clientId) => {
 	}
 }
 
-const readBuffer = async (path, clientId, onRead) => {
+const initFileBuffer = async (path) => {
 	const isFirstLoad = !files.hasOwnProperty(path)
 	// Initialize the reader
 	if (isFirstLoad) {
+		const [content, position] = await readFromEnd(path, 10)
 		files[path] = {
-			content: [],
+			lastReadPostion: position,
+			content: content,
 			clients: []
 		}
-		await listenRead(path)
+		listenRead(path, content => {
+			files[path].clients.forEach(client => {
+				client.callBack(content)
+			})
+		})
 	}
+}
+
+const subscribeFile = async (path, clientId, onRead) => {
 	files[path].clients.push({
 		clientId: clientId,
 		callBack: onRead
 	})
-	// Send the first 10 lines from buffer
+	// Sending the first message of the subscription i.e last 10 lines from the buffer
 	onRead(files[path].content)
 }
 
 module.exports = {
 	onDisconnect,
-	readBuffer
+	initFileBuffer,
+	subscribeFile
 };
