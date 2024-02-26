@@ -1,5 +1,6 @@
 class GreedGame
     def initialize(player_count)
+        raise "player_count cannot be 0" if player_count == 0
         @player_count = player_count
         @scores = Array.new(player_count, 0)
     end
@@ -75,9 +76,3 @@ class GreedGame
         puts "\nWinner is Player #{winner + 1} with a score of #{@scores[winner]}!"
     end
 end
-
-# Example usage
-puts "Enter number of players:"
-player_count = gets.to_i
-game = GreedGame.new(player_count)
-game.play
