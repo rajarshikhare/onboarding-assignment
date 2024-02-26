@@ -1,19 +1,46 @@
-const WebSocket = require("ws");
-const listenRead = require("./reader");
+const WebSocket = require('ws');
+const http = require('http');
+const url = require('url');
+const { v4: uuidv4 } = require('uuid');
+const { onDisconnect, readBuffer } = require('./reader');
 
-const filename = "logs.txt";
 const port = 8080;
 
-const wss = new WebSocket.Server({port: port}, () => {
-    console.log(`WebSocket server running on port ${port}`);
+// Create an HTTP server
+const server = http.createServer((req, res) => {
+    res.writeHead(404);
+    res.end();
 });
 
-wss.on("connection", (ws) => {
-    listenRead(filename, (content) => {
-        ws.send(content);
+// Attach WebSocket server to the HTTP server
+const wss = new WebSocket.Server({ noServer: true });
+
+wss.on('connection', (ws, request, filename) => {
+    // Generate a unique ID for the client
+    const clientId = uuidv4();
+
+    readBuffer(filename, clientId, (content) => {
+        ws.send(content.join("\n"));
     });
 
-    ws.on("close", () => {
-        console.log("Client disconnected");
+    ws.on('close', () => {
+        console.log('Client disconnected');
+        onDisconnect(filename, clientId)
     });
+});
+
+// Handle upgrade requests
+server.on('upgrade', (request, socket, head) => {
+    const pathname = url.parse(request.url).pathname;
+
+    // Extract filename from pathname, e.g., "/logs.txt" => "logs.txt"
+    const filename = pathname ? pathname.slice(1) : '';
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request, filename);
+    });
+});
+
+server.listen(port, () => {
+    console.log(`HTTP and WebSocket server running on port ${port}`);
 });
