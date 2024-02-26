@@ -56,6 +56,8 @@ const listenRead = async (path, sendUpdates) => {
 		if (eventType === "change") {
 			readFile(path, files[path].lastReadPostion, (content, end) => {
 				files[path].lastReadPostion = end;
+				files[path].content = files[path].content.slice(content.length)
+				files[path].content.push(...content)
 				sendUpdates(content)
 			});
 		}
