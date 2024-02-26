@@ -1,3 +1,5 @@
+require 'timecop'
+
 describe "POST /generate_key" do
   it "generates a new key and returns it" do
     post '/generate_key'
@@ -96,8 +98,8 @@ describe "GET /keep_alive/:key" do
 
   context "when keep-alive is not called" do
     it "retuns 404" do
-	  # change system clock
-      sleep(301)
+      # Simulate time passing
+      Timecop.travel(Time.now + 301)
       get '/get_key'
       expect(last_response.status).to eq(404)
     end
