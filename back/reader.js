@@ -19,14 +19,15 @@ const readFile = (path, start, onRead) => {
     });
 };
 
-const readFromEnd = async (path, onRead, lines) => {
-    try {
-        const stats = await fsStat(path);
-        let position = stats.size;
-        const buffer = Buffer.alloc(1);
-        let lineCount = 0;
-        let content = "";
-        let fileDescriptor = await fsOpen(path, "r");
+const readFromEnd = async (path, lines) => {
+	try {
+		const stats = await fsPromise.stat(path);
+		let position = stats.size;
+		const bufferSize = 100
+		const buffer = Buffer.alloc(bufferSize);
+		let lineCount = 0;
+		let content = []
+		let fileDescriptor = await fsPromise.open(path, "r");
 
         while (position > 0 && lineCount <= lines) {
             position -= 1;
@@ -48,36 +49,62 @@ const readFromEnd = async (path, onRead, lines) => {
             }
         }
 
-        await fsClose(fileDescriptor);
-        onRead(content, stats.size);
-    } catch (err) {
-        console.error("An error occurred:", err);
-    }
+		fileDescriptor.close();
+		return [content, stats.size];
+	} catch (err) {
+		console.error("An error occurred:", err);
+	}
 };
 
-const listenRead = (path, onRead) => {
-    let start = 0;
-    // Read last 10 lines
-    readFromEnd(
-        path,
-        (content, end) => {
-            // console.log("Sending first lines...")
-            start = end;
-            onRead(content);
-        },
-        10,
-    );
-
-    // Watch for changes in the file
-    fs.watch(path, (eventType) => {
-        if (eventType === "change") {
-            readFile(path, start, (content, end) => {
-                // console.log("Sending updates...")
-                start = end;
-                onRead(content);
-            });
-        }
-    });
+const listenRead = async (path, sendUpdates) => {
+	// Watch for changes in the file
+	fs.watch(path, (eventType) => {
+		if (eventType === "change") {
+			readFile(path, files[path].lastReadPostion, (content, end) => {
+				files[path].lastReadPostion = end;
+				sendUpdates(content)
+			});
+		}
+	});
 };
 
-module.exports = listenRead;
+const onDisconnect = async (path, clientId) => {
+	files[path].clients = files[path].clients.filter(r => r.clientId !== clientId)
+	// delete file buffer if no clients connected for this file
+	if (files[path].clients.length === 0 ) {
+		delete files[path]
+	}
+}
+
+const initFileBuffer = async (path) => {
+	const isFirstLoad = !files.hasOwnProperty(path)
+	// Initialize the reader
+	if (isFirstLoad) {
+		const [content, position] = await readFromEnd(path, 10)
+		files[path] = {
+			lastReadPostion: position,
+			content: content,
+			clients: []
+		}
+		listenRead(path, content => {
+			files[path].clients.forEach(client => {
+				client.callBack(content)
+			})
+		})
+	}
+}
+
+const subscribeFile = async (path, clientId, onRead) => {
+	files[path].clients.push({
+		clientId: clientId,
+		callBack: onRead
+	})
+	// Sending the first message of the subscription i.e last 10 lines from the buffer
+	onRead(files[path].content)
+}
+
+module.exports = {
+	onDisconnect,
+	initFileBuffer,
+	subscribeFile
+};

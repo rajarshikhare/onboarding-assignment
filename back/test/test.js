@@ -1,7 +1,6 @@
 
 const assert = require('assert');
 const WebSocket = require('ws');
-const sinon = require('sinon');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
