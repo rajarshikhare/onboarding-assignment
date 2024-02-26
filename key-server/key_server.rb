@@ -1,6 +1,8 @@
 require 'sinatra'
 require 'securerandom'
 require 'time'
+require 'mutex_m'
+KEYS_LOCK = Mutex.new
 
 set :port, 4567 # or any preferred port
 
@@ -11,19 +13,27 @@ KEYS = {}
 # Endpoint to generate keys
 post '/generate_key' do
   key = SecureRandom.hex(10)
-  KEYS[key] = {blocked: false, last_seen: Time.now}
+  KEYS_LOCK.synchronize {
+    KEYS[key] = {blocked: false, last_seen: Time.now}
+  }
   key
 end
 
 # Endpoint to get an available key
 get '/get_key' do
-  key, _ = KEYS.find { |_, v| !v[:blocked] && (Time.now - v[:last_seen]) <= 300 }
+  key = nil
+  KEYS_LOCK.synchronize {
+    key, _ = KEYS.find { |_, v| !v[:blocked] && (Time.now - v[:last_seen]) <= 300 }
+    if key
+      KEYS[key][:blocked] = true
+      KEYS[key][:last_seen] = Time.now
+    end
+  }
   if key
-    KEYS[key][:blocked] = true
-    KEYS[key][:last_seen] = Time.now
     return key
+  else
+    status 404
   end
-  status 404
 end
 
 # Endpoint to unblock a key
@@ -58,13 +68,15 @@ end
 # Background thread to handle expiration and automatic unblocking
 Thread.new do
   loop do
-    KEYS.each do |key, info|
-      if (Time.now - info[:last_seen]) > 300
-        KEYS.delete(key)
-      elsif info[:blocked] && (Time.now - info[:last_seen]) > 60
-        KEYS[key][:blocked] = false
+    KEYS_LOCK.synchronize {
+      KEYS.each do |key, info|
+        if (Time.now - info[:last_seen]) > 300
+          KEYS.delete(key)
+        elsif info[:blocked] && (Time.now - info[:last_seen]) > 60
+          KEYS[key][:blocked] = false
+        end
       end
-    end
+    }
     sleep(10) # check every 10 seconds
   end
 end
