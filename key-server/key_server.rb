@@ -1,7 +1,5 @@
 require 'sinatra'
 require 'securerandom'
-require 'time'
-require 'mutex_m'
 KEYS_LOCK = Mutex.new
 
 set :port, 4567 # or any preferred port
