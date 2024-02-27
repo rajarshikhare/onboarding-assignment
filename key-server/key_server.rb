@@ -1,6 +1,8 @@
 require 'sinatra'
 require 'securerandom'
+require 'logger'
 KEYS_LOCK = Mutex.new
+logger = Logger.new(STDOUT)
 
 set :port, 4567 # or any preferred port
 
@@ -14,6 +16,7 @@ post '/generate_key' do
   KEYS_LOCK.synchronize {
     KEYS[key] = {blocked: false, last_seen: Time.now}
   }
+  logger.info("Key generated: #{key}")
   key
 end
 
@@ -29,8 +32,10 @@ get '/get_key' do
   }
   if key
     return key
+    logger.info("Returned key: #{key}")
   else
     status 404
+    logger.info("Key not found")
   end
 end
 
@@ -39,32 +44,38 @@ post '/unblock_key/:key' do
   if KEYS[params[:key]]
     KEYS[params[:key]][:blocked] = false
     KEYS[params[:key]][:last_seen] = Time.now
+    logger.info("Unblocked key: #{params[:key]}")
     "Key #{params[:key]} unblocked."
   else
     status 404
+    logger.info("Key not found")
   end
 end
 
 # Endpoint to delete a key
 delete '/delete_key/:key' do
   if KEYS.delete(params[:key])
+    logger.info("Deleted key: #{params[:key]}")
     "Key #{params[:key]} deleted."
   else
+    logger.info("Key not found")
     status 404
   end
 end
 
 # Endpoint to keep-alive a key
 get '/keep_alive/:key' do
-  if KEYS[params[:key]] && !KEYS[:blocked]
+  if KEYS[params[:key]] && !KEYS[params[:key]][:blocked]
       KEYS[params[:key]][:last_seen] = Time.now
+      logger.info("Key refreshed: #{params[:key]}")
   else
+    logger.info("Key not found")
     status 404
   end
 end
 
 # Background thread to handle expiration and automatic unblocking
-Thread.new do
+background_thread = Thread.new do
   loop do
     KEYS_LOCK.synchronize {
       KEYS.each do |key, info|
@@ -77,4 +88,12 @@ Thread.new do
     }
     sleep(10) # check every 10 seconds
   end
+end
+
+# Implement the at_exit hook
+at_exit do
+  # Signal the background thread to stop
+  background_thread.kill
+  # Wait for the thread to finish
+  background_thread.join
 end
