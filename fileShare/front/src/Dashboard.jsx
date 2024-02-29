@@ -11,16 +11,52 @@ import {
 } from "@nextui-org/react";
 import { BsUpload } from "react-icons/bs";
 import Upload from "./Upload";
+import { useEffect, useState } from "react";
+import { deleteUploads, downloadUploads, getUploads } from "./ApiService";
 
 export default function Dashboard() {
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const [files, setFiles] = useState([])
+
+  useEffect(() => {
+    getFiles()
+  }, [])
+
+  const getFiles = () => {
+    getUploads().then(r => {
+      setFiles(r.data)
+    })
+  }
+
+  const onCloseDialog = () => {
+    onClose();
+    getFiles();
+  }
+
+  const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
+  const deleteFile = (id) => () => {
+    deleteUploads(id).then(r => {
+      getFiles();
+    })
+  }
 
   return (
     <>
-      <Upload isOpen={isOpen} onOpenChange={onOpenChange} />
+      {isOpen && <Upload isOpen={isOpen} onOpenChange={onOpenChange} onClose={onCloseDialog} />}
       <div className="flex h-full w-full flex-col gap-8 p-16">
         <div className="flex w-full items-center">
-          <p className=" text-4xl font-bold">Files Dashboard - 5 files</p>
+          <p className=" text-4xl font-bold">Files Dashboard - {files.length} files</p>
           <div className="flex-grow" />
           <Button color="primary" endContent={<BsUpload />} onClick={onOpen}>
             Upload
@@ -36,28 +72,26 @@ export default function Dashboard() {
               <TableColumn>SHARING</TableColumn>
             </TableHeader>
             <TableBody>
-              <TableRow key="1">
-                <TableCell>Tony Reichert</TableCell>
-                <TableCell>CEO</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>
-                  {" "}
-                  <Switch defaultSelected>Automatic updates</Switch>
-                </TableCell>
-              </TableRow>
-              <TableRow key="3">
-                <TableCell>Jane Fisher</TableCell>
-                <TableCell>Senior Developer</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>
-                  {" "}
-                  <Switch defaultSelected>Automatic updates</Switch>
-                </TableCell>
-              </TableRow>
+              {
+                files.map(file => {
+                  return <TableRow key={file.id}>
+                    <TableCell>{file.name}</TableCell>
+                    <TableCell>{(new Date(file.create_date)).toDateString()}</TableCell>
+                    <TableCell>{formatBytes(file.size)}</TableCell>
+                    <TableCell className="flex gap-2 items-center">
+                      <Button size="sm" color="primary" onClick={() => downloadUploads(file.id, file.name)}>Download</Button>
+                      <Button size="sm"  color="danger" onClick={deleteFile(file.id)}  >Delete</Button>
+                    </TableCell>
+                    <TableCell>
+                      {/* Placeholder for sharing functionality or info */}
+                      <Switch defaultSelected>Link</Switch>
+                    </TableCell>
+                  </TableRow>
+                })
+              }
             </TableBody>
           </Table>
+
         </div>
       </div>
     </>

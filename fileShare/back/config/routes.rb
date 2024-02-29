@@ -13,5 +13,9 @@ Rails.application.routes.draw do
   post "login", to: "users#login"
   patch "user", to: "users#update"
 
-  # Files Routes
+  # Upload Routes
+  post "upload", to: "uploads#create"
+  get "upload", to: "uploads#get"
+  delete "uploads/:id", to: "uploads#destroy"
+  get "uploads/:id/download", to: "uploads#download"
 end
