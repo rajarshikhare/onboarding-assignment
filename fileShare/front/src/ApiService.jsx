@@ -39,3 +39,43 @@ export const update = (user) => {
     return r.data;
   });
 };
+
+export const upload = (file, progress) => {
+  return authCalls.post(`/upload`, file, {
+    onUploadProgress: (progressEvent) => {
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      progress(percentCompleted)
+    }
+  }).then(r => {
+    return r.data;
+  })
+}
+
+export const getUploads = () => {
+  return authCalls.get(`/upload`).then(r => {
+    return r.data;
+  })
+}
+
+export const deleteUploads = (id) => {
+  return authCalls.delete(`/uploads/${id}`).then(r => {
+    return r.data;
+  })
+}
+
+export const downloadUploads = (id, name) => {
+  return authCalls.get(`/uploads/${id}/download`, { responseType: 'blob' }) // Ensure response type is blob
+    .then(response => {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', name); // Set the file name and extension as needed
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url); // Clean up by revoking the blob URL
+    })
+    .catch(error => {
+      console.error('Download error:', error);
+    });
+}
