@@ -79,3 +79,15 @@ export const downloadUploads = (id, name) => {
       console.error('Download error:', error);
     });
 }
+
+export const makePublic = (id) => {
+  return authCalls.get(`/uploads/${id}/make_public`).then(r => {
+    return r.data;
+  })
+}
+
+export const makePrivate = (id) => {
+  return authCalls.get(`/uploads/${id}/make_private`).then(r => {
+    return r.data;
+  })
+}

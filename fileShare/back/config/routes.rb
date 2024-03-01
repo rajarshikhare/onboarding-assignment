@@ -18,4 +18,8 @@ Rails.application.routes.draw do
   get "upload", to: "uploads#get"
   delete "uploads/:id", to: "uploads#destroy"
   get "uploads/:id/download", to: "uploads#download"
+  get "uploads/:id/publicdownload", to: "uploads#download_public"
+  get "uploads/:id/make_public", to: "uploads#make_public"
+  get "uploads/:id/make_private", to: "uploads#make_private"
+
 end
