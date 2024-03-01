@@ -1,4 +1,5 @@
 class UploadsController < ApplicationController
+  skip_before_action :authenticate_request, only: [:download_public]
   def new
     @upload = Upload.new
   end
@@ -22,7 +23,8 @@ class UploadsController < ApplicationController
         id: upload.id,
         name: filename,
         size: filesize,
-        create_date: upload.created_at
+        create_date: upload.created_at,
+        is_public: upload.is_public
       })
     end
     render json: { status: 'SUCCESS', message: 'Uploaded in successfully', data: files }, status: :ok
@@ -47,6 +49,43 @@ class UploadsController < ApplicationController
                 type: upload.file.attachment.blob.content_type
     else
       render json: { status: 'ERROR', message: 'File not found' }, status: :not_found
+    end
+  end
+
+  def download_public
+    upload = Upload.find_by(id: params[:id])
+
+    if upload
+      if upload.is_public
+      send_file upload.file.attachment.blob.service.send(:path_for, upload.file.attachment.blob.key),
+                filename: upload.file.attachment.blob.filename.to_s,
+                type: upload.file.attachment.blob.content_type
+      else
+        render json: { status: 'UNAUTHORISED', message: 'File not public' }, status: :not_found
+      end
+
+    else
+      render json: { status: 'ERROR', message: 'File not found' }, status: :not_found
+    end
+  end
+
+  def make_public
+    upload = @current_user.uploads.find_by(id: params[:id])
+
+    if upload&.update(is_public: true)
+      render json: { status: 'SUCCESS', message: 'File made public successfully' }, status: :ok
+    else
+      render json: { status: 'ERROR', message: 'File not found or could not be updated' }, status: :not_found
+    end
+  end
+
+  def make_private
+    upload = @current_user.uploads.find_by(id: params[:id])
+
+    if upload&.update(is_public: false)
+      render json: { status: 'SUCCESS', message: 'File made public successfully' }, status: :ok
+    else
+      render json: { status: 'ERROR', message: 'File not found or could not be updated' }, status: :not_found
     end
   end
 

@@ -12,7 +12,7 @@ import {
 import { BsUpload } from "react-icons/bs";
 import Upload from "./Upload";
 import { useEffect, useState } from "react";
-import { deleteUploads, downloadUploads, getUploads } from "./ApiService";
+import { deleteUploads, downloadUploads, getUploads, makePrivate, makePublic } from "./ApiService";
 
 export default function Dashboard() {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
@@ -51,6 +51,21 @@ export default function Dashboard() {
     })
   }
 
+  const toggleShare = (id, value) => () => {
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].id === id) {
+        files[i].is_public = !value
+        setFiles([...files])
+        break;
+      }
+    }
+    if (value) {
+      makePrivate(id)
+    } else {
+      makePublic(id)
+    }
+  }
+
   return (
     <>
       {isOpen && <Upload isOpen={isOpen} onOpenChange={onOpenChange} onClose={onCloseDialog} />}
@@ -80,11 +95,15 @@ export default function Dashboard() {
                     <TableCell>{formatBytes(file.size)}</TableCell>
                     <TableCell className="flex gap-2 items-center">
                       <Button size="sm" color="primary" onClick={() => downloadUploads(file.id, file.name)}>Download</Button>
-                      <Button size="sm"  color="danger" onClick={deleteFile(file.id)}  >Delete</Button>
+                      <Button size="sm" color="danger" onClick={deleteFile(file.id)}  >Delete</Button>
                     </TableCell>
                     <TableCell>
-                      {/* Placeholder for sharing functionality or info */}
-                      <Switch defaultSelected>Link</Switch>
+                      <Switch defaultSelected={file.is_public} onValueChange={toggleShare(file.id, file.is_public)} />
+                      {
+                        file.is_public && <a href={`${import.meta.env.VITE_API_URL}/uploads/${file.id}/publicdownload`}>
+                          link
+                        </a>
+                      }
                     </TableCell>
                   </TableRow>
                 })
