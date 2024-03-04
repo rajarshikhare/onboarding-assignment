@@ -33,6 +33,7 @@ class Turn
       scoring_dice = dice.select { |d| [1, 5].include?(d) || dice.count(d) >= 3 }
       dice_count = 5 - scoring_dice.size
       dice_count = 5 if dice_count == 0
+      puts "Player #{@player.name} Dice Rolled! Score: #{turn_score}, do you want to scroll again?"
       break unless gets.strip.downcase == 'yes'
     end
     turn_score
