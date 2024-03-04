@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "chai": "^5.1.0",
+    "mocha": "^10.3.0",
+    "sinon": "^17.0.1",
+    "ws": "^8.16.0"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1",
+    "ws": "^8.16.0"
+  }
+}
