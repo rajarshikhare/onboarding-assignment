@@ -25,15 +25,17 @@ class Turn
     turn_score = 0
     dice_count = 5
     loop do
+      puts "Player #{@player.name} rolled #{dice_count} dice!"
       dice = @dice.roll(dice_count)
       roll_score = score_roll(dice)
+      puts "Player #{@player.name} Dice Rolled! Configuration #{dice}"
       break if roll_score == 0
 
       turn_score += roll_score
       scoring_dice = dice.select { |d| [1, 5].include?(d) || dice.count(d) >= 3 }
       dice_count = 5 - scoring_dice.size
       dice_count = 5 if dice_count == 0
-      puts "Player #{@player.name} Dice Rolled! Score: #{turn_score}, do you want to scroll again?"
+      puts "Player #{@player.name} Dice Rolled! Score: #{turn_score}, do you want to scroll again with #{dice_count} dice?"
       break unless gets.strip.downcase == 'yes'
     end
     turn_score

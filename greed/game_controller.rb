@@ -38,8 +38,15 @@ class GameController
   end
 
   def announce_winner
-    winner = @players.max_by(&:score)
-    # Tie Breaker
-    puts "\nWinner is #{winner.name} with a score of #{winner.score}!"
+    highest_score = @players.map(&:score).max
+    winners = @players.select { |player| player.score == highest_score }
+
+    if winners.size > 1
+      winner_names = winners.map(&:name).join(', ')
+      puts "\nIt's a tie between #{winner_names} with a score of #{highest_score}!"
+    else
+      winner = winners.first
+      puts "\nWinner is #{winner.name} with a score of #{highest_score}!"
+    end
   end
 end
