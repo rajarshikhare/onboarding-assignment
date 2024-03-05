@@ -30,6 +30,10 @@ class GameController
   def final_round
     puts "\nFinal Round!"
     @players.each do |player|
+      # exclude the player who has already scored 3000
+      if player.score >= 3000
+          continue
+      end
       puts "#{player.name}'s final turn"
       turn = Turn.new(player, @dice)
       turn_score = turn.play

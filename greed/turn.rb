@@ -21,6 +21,32 @@ class Turn
     score
   end
 
+  def non_scoring_dice_count(dice)
+    # Count occurrences of each die face
+    counts = dice.each_with_object(Hash.new(0)) { |num, hash| hash[num] += 1 }
+    non_scoring_count = 0
+
+    counts.each do |num, count|
+      if num == 1
+        # Subtract scoring 1's
+        non_scoring_count += [0, count - 3].max
+      elsif num == 5
+        # Subtract scoring 5's
+        non_scoring_count += [0, count - 3].max
+      else
+        # For 2, 3, 4, 6 - Only subtract if there's a triplet
+        non_scoring_count += count >= 3 ? count - 3 : count
+      end
+    end
+
+    # Total dice - scoring dice = non-scoring dice
+    total_dice = dice.length
+    scoring_dice = total_dice - non_scoring_count
+    non_scoring_dice = total_dice - scoring_dice
+
+    non_scoring_dice
+  end
+
   def play
     turn_score = 0
     dice_count = 5
@@ -36,9 +62,9 @@ class Turn
       end
 
       turn_score += roll_score
-      scoring_dice = dice.select { |d| [1, 5].include?(d) || dice.count(d) >= 3 }
-      puts "Dice used for scoring: #{scoring_dice}"
-      dice_count = dice_count - scoring_dice.size
+      non_scoring_dice = non_scoring_dice_count(dice)
+      puts "Dice used left : #{non_scoring_dice}"
+      dice_count = non_scoring_dice
       dice_count = 5 if dice_count == 0
       puts "Turn Score: #{turn_score}, Roll Score: #{roll_score}, do you want to scroll again with #{dice_count} dice?"
       break unless gets.strip.downcase == 'yes'
