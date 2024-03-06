@@ -39,12 +39,7 @@ class Turn
       end
     end
 
-    # Total dice - scoring dice = non-scoring dice
-    total_dice = dice.length
-    scoring_dice = total_dice - non_scoring_count
-    non_scoring_dice = total_dice - scoring_dice
-
-    non_scoring_dice
+    non_scoring_count
   end
 
   def play

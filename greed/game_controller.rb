@@ -32,7 +32,7 @@ class GameController
     @players.each do |player|
       # exclude the player who has already scored 3000
       if player.score >= 3000
-          continue
+          next
       end
       puts "#{player.name}'s final turn"
       turn = Turn.new(player, @dice)
